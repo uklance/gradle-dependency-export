@@ -46,7 +46,7 @@ class MavenDependencyExportTest extends Specification {
 					mavenCentral()
 				}
 				dependencies {
-				    compile 'org.springframework:spring-core:4.3.10.RELEASE'
+				    compile 'org.hibernate:hibernate-core:3.5.4-Final'
 
 				}
 				mavenDependencyExport {
@@ -62,10 +62,11 @@ class MavenDependencyExportTest extends Specification {
                                 paths << it.relativePath.pathString
                             }
                         }
-                        assert paths.contains('org/springframework/spring-core/4.3.10.RELEASE/spring-core-4.3.10.RELEASE.jar')
-                        assert paths.contains('org/springframework/spring-core/4.3.10.RELEASE/spring-core-4.3.10.RELEASE.pom')
-                        assert paths.contains('commons-logging/commons-logging/1.2/commons-logging-1.2.jar')
-                        assert paths.contains('commons-logging/commons-logging/1.2/commons-logging-1.2.pom')
+                        assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final.pom')
+                        assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final.jar')
+                        assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1.jar')
+                        assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1.pom')
+                        assert paths.contains('org/hibernate/hibernate-parent/3.5.4-Final/hibernate-parent-3.5.4-Final.pom')
                     }
                 } 
 			''')
