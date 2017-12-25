@@ -40,7 +40,6 @@ public class ModelResolverImpl implements ModelResolver {
         config.getDependencies().add(dependency);
 
         File pomXml = config.getSingleFile();
-        System.err.println(String.format("############# %s:%s:%s", groupId, artifactId, version));
         listener.onResolveModel(groupId, artifactId, version, pomXml);
         return new ModelSource() {
             @Override
