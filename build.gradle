@@ -3,7 +3,7 @@ plugins {
 	id 'com.github.kt3k.coveralls' version '2.6.3'
 	id 'groovy'
 	id 'maven-publish'
-	id "com.gradle.plugin-publish" version "0.9.7"
+	id 'com.gradle.plugin-publish' version '0.9.7'
 	id 'java-gradle-plugin'
 }
 
@@ -19,12 +19,14 @@ configurations {
 }
 
 dependencies {
+	compile 'org.apache.maven:maven-model:3.5.2'
+	compile 'org.apache.maven:maven-model-builder:3.5.2'
 	testCompile 'junit:junit:4.12'
 	testCompile 'org.mockito:mockito-all:1.10.19'
 	testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
         exclude module: 'groovy-all'
     }
-	testRuntime files("$buildDir/testkit")
+	testRuntime files({project.tasks['createTestkitFiles']})
 	jacocoRuntime "org.jacoco:org.jacoco.agent:${jacoco.toolVersion}:runtime"
 }
 
@@ -42,7 +44,6 @@ test {
 	beforeTest { TestDescriptor descriptor ->
 		logger.lifecycle("Running test: $descriptor.name")
 	}
-	dependsOn 'createTestkitFiles'
 }
 
 task createTestkitFiles {
@@ -53,8 +54,9 @@ task createTestkitFiles {
 	outputs.dir outputDir
 
 	doLast {
-		outputDir.mkdirs()
-		String propString = "org.gradle.jvmargs=-javaagent:${configurations.jacocoRuntime.asPath}=destfile=$buildDir/jacoco/test.exec".replace('\\', '/')
+		String propString = "org.gradle.jvmargs=-javaagent:${configurations.jacocoRuntime.asPath}=destfile=$buildDir/jacoco/test.exec"
+		propString = propString.replace('\\', '/')
+		mkdir(outputDir)
 		file("$outputDir/testkit-gradle.properties").text = propString
 	}
 }
