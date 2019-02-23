@@ -20,7 +20,8 @@ import org.apache.maven.model.building.ModelBuildingRequest
 import org.apache.maven.model.resolution.ModelResolver
 
 class MavenDependencyExport extends DefaultTask {
-    private Collection<Configuration> configurations = new LinkedHashSet<Configuration>()
+
+    private Collection<Configuration> configurations = new LinkedHashSet<>()
 
     @InputFiles
     FileCollection getInputFiles() {
@@ -34,9 +35,15 @@ class MavenDependencyExport extends DefaultTask {
         if (!configurations.empty) {
             return configurations
         }
-        Collection<Configuration> defaultConfigurations = new LinkedHashSet<Configuration>()
+        Collection<Configuration> defaultConfigurations = new LinkedHashSet<>()
         defaultConfigurations.addAll(project.buildscript.configurations)
         defaultConfigurations.addAll(project.configurations)
+
+        // alle Konfigurationen filtern die nicht resolved werden dürfen
+        defaultConfigurations = defaultConfigurations.findAll { it.canBeResolved  }
+
+        println "Verwendete Konfigurationen: " + defaultConfigurations*.name
+
         return defaultConfigurations
     }
 
@@ -62,6 +69,7 @@ class MavenDependencyExport extends DefaultTask {
 
     protected void copyJars(Configuration config) {
         for (ResolvedArtifact artifact : config.resolvedConfiguration.resolvedArtifacts) {
+            println "Kopiere ${artifact.file} ..."
             def moduleVersionId = artifact.moduleVersion.id
             File moduleDir = new File(exportDir, getPath(moduleVersionId.group, moduleVersionId.name, moduleVersionId.version))
             project.mkdir(moduleDir)
@@ -92,15 +100,26 @@ class MavenDependencyExport extends DefaultTask {
                 component.getArtifacts(MavenPomArtifact).each { ArtifactResult artifactResult ->
                     File pomFile = artifactResult.file
                     project.copy {
+                        println "Kopiere ${pomFile} ..."
                         from pomFile
                         into moduleDir
                     }
 					
 					// force the parent POMs and BOMs to be downloaded and copied
-					ModelBuildingRequest req = new DefaultModelBuildingRequest();
-					req.setModelResolver(modelResolver);
-					req.setPomFile(pomFile)					
-					builder.build(req).getEffectiveModel()
+                    try {
+                        ModelBuildingRequest req = new DefaultModelBuildingRequest()
+                        req.setModelResolver(modelResolver)
+                        req.setPomFile(pomFile)
+                        // System Properties kopieren da diese in einigen POMs benötigt werden
+                        req.getSystemProperties().put("java.version", System.getProperty("java.version"))
+                        req.getSystemProperties().put("java.home", System.getProperty("java.home"))
+                        // Minimale Validierung der Parent POMs
+                        req.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL)
+                        builder.build(req).getEffectiveModel()
+                    } catch (Exception e) {
+                        e.printStackTrace(System.out)
+                    }
+
                 }
             }
         }
@@ -110,6 +129,7 @@ class MavenDependencyExport extends DefaultTask {
 		File moduleDir = new File(exportDir, getPath(groupId, artifactId, version))
 		project.mkdir(moduleDir)
 		project.copy {
+            		println "Kopiere ${pomFile} ..."
 			from pomFile
 			into moduleDir
 		}

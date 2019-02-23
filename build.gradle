@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'com.lazan'
-version = '0.1-SNAPSHOT'
+version = '0.2-SNAPSHOT'
 
 repositories {
 	mavenCentral()
@@ -55,9 +55,8 @@ task createTestkitFiles {
 
 	doLast {
 		String propString = "org.gradle.jvmargs=-javaagent:${configurations.jacocoRuntime.asPath}=destfile=$buildDir/jacoco/test.exec"
-		propString = propString.replace('\\', '/')
 		mkdir(outputDir)
-		file("$outputDir/testkit-gradle.properties").text = propString
+		file("$outputDir/testkit-gradle.properties").text = propString.replace('\\', '/')
 	}
 }
 
