@@ -39,17 +39,31 @@ class MavenDependencyExport extends DefaultTask {
 			return configurations
 		}
 		Collection<Configuration> defaultConfigurations = new LinkedHashSet<>()
-		defaultConfigurations.addAll(project.buildscript.configurations.findAll { it.canBeResolved  })
-		defaultConfigurations.addAll(project.configurations.findAll { it.canBeResolved  })
+		defaultConfigurations.addAll(project.buildscript.configurations.findAll { it.canBeResolved })
+		defaultConfigurations.addAll(project.configurations.findAll { it.canBeResolved })
 		return defaultConfigurations
 	}
 
+	void setConfigurations(Collection<Configuration> configs) {
+		for (Configuration conf : configs)
+			configuration(conf)
+	}
+	
 	void configuration(String name) {
-		configurations.add(project.configurations.getByName(name))
+		Configuration config = project.configurations.getByName(name)
+		if (config.canBeResolved) {
+			configurations.add(config)
+		} else {
+			logger.warn "Configuration ${config.name} was not added cause it is not resolvable."
+		}
 	}
 
 	void configuration(Configuration configuration) {
-		configurations.add(configuration)
+		if (configuration.canBeResolved) {
+			configurations.add(configuration)
+		} else {
+			logger.warn "Configuration ${configuration.name} was not added cause it is not resolvable."
+		}
 	}
 
 	@TaskAction
@@ -62,12 +76,10 @@ class MavenDependencyExport extends DefaultTask {
 			logger.info "Exporting ${config.name}..."
 			copyJars(config)
 			copyPoms(config, modelResolver)
-			if (exportSources) {
+			if (exportSources)
 				copyAdditionalArtifacts(config, modelResolver, SourcesArtifact)
-			}
-			if (exportJavadoc) {
+			if (exportJavadoc)
 				copyAdditionalArtifacts(config, modelResolver, JavadocArtifact)
-			}
 		}
 		Set<String> exportedPaths = new TreeSet()
 		project.fileTree(exportDir).visit {
@@ -131,7 +143,7 @@ class MavenDependencyExport extends DefaultTask {
 
 		DefaultModelBuilderFactory factory = new DefaultModelBuilderFactory()
 		DefaultModelBuilder builder = factory.newInstance()
-		
+
 		for (component in result.resolvedComponents) {
 			ComponentIdentifier componentId = component.id
 
@@ -144,7 +156,7 @@ class MavenDependencyExport extends DefaultTask {
 						from pomFile
 						into moduleDir
 					}
-					
+
 					// force the parent POMs and BOMs to be downloaded and copied
 					try {
 						ModelBuildingRequest req = new DefaultModelBuildingRequest()
@@ -152,7 +164,7 @@ class MavenDependencyExport extends DefaultTask {
 						req.setPomFile(pomFile)
 						req.getSystemProperties().putAll(systemProperties)
 						req.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL)
-						
+
 						// execute the model building request
 						builder.build(req).getEffectiveModel()
 					} catch (Exception e) {
@@ -162,7 +174,7 @@ class MavenDependencyExport extends DefaultTask {
 			}
 		}
 	}
-	
+
 	protected void copyAssociatedPom(String groupId, String artifactId, String version, File pomFile) {
 		File moduleDir = new File(exportDir, getPath(groupId, artifactId, version))
 		project.mkdir(moduleDir)
