@@ -60,9 +60,9 @@ class MavenDependencyExport extends DefaultTask {
 		}
 		Set<File> sortedFiles = new TreeSet()
 		sortedFiles.addAll(project.fileTree(exportDir).files)
-		logger.info("Exported ${sortedFiles.size()} files")
+		logger.info("Exported ${sortedFiles.size()} files to $exportDir")
 		sortedFiles.each {
-			logger.info("   $it")
+			logger.info("   $it.name")
 		}
 	}
 

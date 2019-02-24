@@ -49,7 +49,50 @@ class MavenDependencyExportTest extends Specification {
 					compile 'org.hibernate:hibernate-core:3.5.4-Final'
 
 				}
+				task verifyExport {
+					dependsOn mavenDependencyExport
+					doLast {
+						def paths = []
+						fileTree("$buildDir/maven-dependency-export").visit {
+							if (!it.file.directory) {
+								paths << it.relativePath.pathString
+							}
+						}
+						assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final.pom')
+						assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final.jar')
+						assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1.jar')
+						assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1.pom')
+						assert paths.contains('org/hibernate/hibernate-parent/3.5.4-Final/hibernate-parent-3.5.4-Final.pom')
+					}
+				} 
+			''')
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(tempFolder.root)
+				.withTestKitDir(testkitDir)
+				.withArguments('verifyExport', '--stacktrace')
+				.withPluginClasspath()
+				.build()
+		then:
+		result.task(":verifyExport").outcome == TaskOutcome.SUCCESS
+	}
+	
+	def "Test custom configuration export"() {
+		given:
+		File testkitDir = tempFolder.newFolder('testkit')
+		writeFile("build.gradle", '''
+				plugins {
+					id 'com.lazan.dependency-export'
+				}
+				repositories {
+					mavenCentral()
+				}
+				configurations { foo }
+				dependencies {
+					foo 'org.hibernate:hibernate-core:3.5.4-Final'
+				}
 				mavenDependencyExport {
+					configuration 'foo'
 					exportDir = file("$buildDir/offline-repo")
 				}
 				task verifyExport {
