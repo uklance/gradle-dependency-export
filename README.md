@@ -2,35 +2,46 @@
 
 Export maven dependencies from a gradle project to the file system
 
-## How to build and deploy to local maven Repository
+## Usage (plugin DSL)
+```
+plugins {
+  id "com.lazan.dependency-export" version "0.2"
+}
+```
 
-    gradlew clean publishToMavenLocal
-
-## How to include plugin
-
-### settings.gradle
-    
-    pluginManagement {
-        repositories {
-            mavenLocal()
-            maven {
-                url 'http://your_own_repository'
-            }
-            gradlePluginPortal()
-        }
+## Usage (legacy)
+```
+buildscript {
+  repositories {
+    maven {
+      url "https://plugins.gradle.org/m2/"
     }
+  }
+  dependencies {
+    classpath "com.lazan:gradle-dependency-export:0.2"
+  }
+}
 
-### build.gradle
+apply plugin: "com.lazan.dependency-export"
+```
 
-    buildscript {
-        dependencies {
-            classpath group: 'com.lazan',
-                    name: 'gradle-dependency-export',
-                    version: '0.1-SNAPSHOT'
-        }
-    }
+## mavenDependencyExport task
 
-    ...
+### Properties
 
-    apply plugin: 'com.lazan.dependency-export'
+|Name|Type|Default Value|
+|----|----|-------------|
+|configurations|Collection<Configuration>|buildscript.configurations + project.configurations|
+|systemProperties|Map<String, Object>|System.getProperties()|
 
+### Sample task customisation
+```
+plugins {
+  id "com.lazan.dependency-export" version "0.2"
+}
+mavenDependencyExport {
+  systemProperties = ['java.version': '1.9']
+  configuration 'foo'
+  configuration buildscript.configurations.classpath
+}
+```
