@@ -36,7 +36,7 @@ class MavenDependencyExportTest extends Specification {
 
 	def "Test dependency export"() {
 		given:
-		File testkitDir = tempFolder.newFolder('testkit')
+		File testkitDir = tempFolder.newFolder('testkit1')
 		writeFile("build.gradle", '''
 				plugins {
 					id 'com.lazan.dependency-export'
@@ -79,7 +79,7 @@ class MavenDependencyExportTest extends Specification {
 	
 	def "Test custom configuration export"() {
 		given:
-		File testkitDir = tempFolder.newFolder('testkit')
+		File testkitDir = tempFolder.newFolder('testkit2')
 		writeFile("build.gradle", '''
 				plugins {
 					id 'com.lazan.dependency-export'
