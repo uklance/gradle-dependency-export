@@ -5,7 +5,7 @@ Export maven dependencies from a gradle project to the file system
 ## Usage (plugin DSL)
 ```
 plugins {
-  id "com.lazan.dependency-export" version "0.3"
+  id "com.lazan.dependency-export" version "0.4"
 }
 ```
 
@@ -18,7 +18,7 @@ buildscript {
     }
   }
   dependencies {
-    classpath "com.lazan:gradle-dependency-export:0.3"
+    classpath "com.lazan:gradle-dependency-export:0.4"
   }
 }
 
@@ -37,7 +37,7 @@ apply plugin: "com.lazan.dependency-export"
 ### Sample task customisation
 ```
 plugins {
-  id "com.lazan.dependency-export" version "0.3"
+  id "com.lazan.dependency-export" version "0.4"
 }
 configurations {
   foo
