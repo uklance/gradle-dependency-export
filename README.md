@@ -31,8 +31,8 @@ apply plugin: "com.lazan.dependency-export"
 
 |Name|Type|Default Value|
 |----|----|-------------|
-|configurations|Collection<Configuration>|buildscript.configurations + project.configurations|
-|systemProperties|Map<String, Object>|System.getProperties()|
+|configurations|Collection\<Configuration\>|buildscript.configurations + project.configurations|
+|systemProperties|Map\<String, Object\>|System.getProperties()|
 
 ### Sample task customisation
 ```
