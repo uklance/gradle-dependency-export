@@ -164,4 +164,111 @@ task verifyExport {
 		System.out.println result.output
 		result.task(":verifyExport").outcome == TaskOutcome.SUCCESS
 	}
+	
+	def "Test warning unresolvable custom configuration"() {
+		given:
+		buildFile('''
+configurations { 	foo 
+					resolvable
+					nonResolvable
+					doLast {
+						// define configuration nonResolvable as unresolvable
+						configurations.nonResolvable.canBeResolved = false
+				}
+}
+dependencies {
+	foo 'org.hibernate:hibernate-core:3.5.4-Final'
+	resolvable 'junit:junit:4.11'
+	nonResolvable 'junit:junit:4.12'
+}
+mavenDependencyExport {
+	configuration 'foo'
+	configuration 'resolvable'
+	configuration 'nonResolvable'
+}
+task verifyExport {
+	dependsOn mavenDependencyExport
+	doLast {
+		def paths = []
+		fileTree("$buildDir/maven-dependency-export").visit {
+			if (!it.file.directory) {
+				paths << it.relativePath.pathString
+			}
+		}
+		assert paths.contains('junit/junit/4.11/junit-4.11.jar')
+		assert !paths.contains('junit/junit/4.12/junit-4.12.jar')
+		assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final.pom')
+		assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final.jar')
+		assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1.jar')
+		assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1.pom')
+		assert paths.contains('org/hibernate/hibernate-parent/3.5.4-Final/hibernate-parent-3.5.4-Final.pom')
+	}
+} 
+'''
+		)
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(tempFolder.root)
+				.withTestKitDir(testKitDir)
+				.withArguments('verifyExport', '-i', '--stacktrace')
+				.withPluginClasspath()
+				.withDebug(true)
+				.build()
+		then:
+		System.out.println result.output
+		result.task(":verifyExport").outcome == TaskOutcome.SUCCESS
+	}
+
+	def "Test warning unresolvable custom configurations"() {
+			given:
+			buildFile('''
+	configurations { 	foo 
+						resolvable
+						nonResolvable
+						doLast {
+							// define configuration nonResolvable as unresolvable
+							configurations.nonResolvable.canBeResolved = false
+					}
+	}
+	dependencies {
+		foo 'org.hibernate:hibernate-core:3.5.4-Final'
+		resolvable 'junit:junit:4.11'
+		nonResolvable 'junit:junit:4.12'
+	}
+	mavenDependencyExport {
+		configurations = project.configurations
+	}
+	task verifyExport {
+		dependsOn mavenDependencyExport
+		doLast {
+			def paths = []
+			fileTree("$buildDir/maven-dependency-export").visit {
+				if (!it.file.directory) {
+					paths << it.relativePath.pathString
+				}
+			}
+			assert paths.contains('junit/junit/4.11/junit-4.11.jar')
+			assert !paths.contains('junit/junit/4.12/junit-4.12.jar')
+			assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final.pom')
+			assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final.jar')
+			assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1.jar')
+			assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1.pom')
+			assert paths.contains('org/hibernate/hibernate-parent/3.5.4-Final/hibernate-parent-3.5.4-Final.pom')
+		}
+	} 
+	'''
+			)
+			when:
+			def result = GradleRunner.create()
+					.withProjectDir(tempFolder.root)
+					.withTestKitDir(testKitDir)
+					.withArguments('verifyExport', '-i', '--stacktrace')
+					.withPluginClasspath()
+					.withDebug(true)
+					.build()
+			then:
+			System.out.println result.output
+			result.task(":verifyExport").outcome == TaskOutcome.SUCCESS
+		}
+	
 }
