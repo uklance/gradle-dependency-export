@@ -1,4 +1,4 @@
-# gradle-dependency-export [![Build Status](https://travis-ci.org/uklance/gradle-dependency-export.svg?branch=master)](https://travis-ci.org/uklance/gradle-dependency-export) <a href='https://coveralls.io/github/uklance/gradle-dependency-export?branch=master'><img src='https://coveralls.io/repos/github/uklance/gradle-dependency-export/badge.svg?branch=master' alt='Coverage Status' /></a>
+# gradle-dependency-export [![Build Status](https://travis-ci.org/uklance/gradle-dependency-export.svg?branch=master)](https://travis-ci.org/uklance/gradle-dependency-export) <a href='https://coveralls.io/github/uklance/gradle-dependency-export?branch=master'><img src='https://img.shields.io/coveralls/github/uklance/gradle-dependency-export/master.svg' alt='Coverage Status' /></a>
 
 Export maven dependencies from a gradle project to the file system
 
