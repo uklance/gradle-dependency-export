@@ -39,6 +39,12 @@ apply plugin: "com.lazan.dependency-export"
 plugins {
   id "com.lazan.dependency-export" version "0.3"
 }
+configurations {
+  foo
+}
+dependencies {
+   foo 'x:y:1.0'
+}
 mavenDependencyExport {
   systemProperties = ['java.version': '1.8']
   configuration 'foo'
