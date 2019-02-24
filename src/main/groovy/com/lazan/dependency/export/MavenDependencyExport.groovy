@@ -18,101 +18,107 @@ import org.apache.maven.model.building.ModelBuildingRequest
 import org.apache.maven.model.resolution.ModelResolver
 
 class MavenDependencyExport extends DefaultTask {
-    private Collection<Configuration> configurations = new LinkedHashSet<>()
-	
+	public Collection<Configuration> configurations = new LinkedHashSet<>()
 	public Map<String, Object> systemProperties = System.getProperties()
 
-    @InputFiles
-    FileCollection getInputFiles() {
-        return project.files(prepareConfigurations())
-    }
+	@InputFiles
+	FileCollection getInputFiles() {
+		return project.files(prepareConfigurations())
+	}
 
-    @OutputDirectory
-    File exportDir = new File(project.buildDir, 'maven-dependency-export')
+	@OutputDirectory
+	File exportDir = new File(project.buildDir, 'maven-dependency-export')
 
-    protected Collection<Configuration> prepareConfigurations() {
-        if (!configurations.empty) {
-            return configurations
-        }
-        Collection<Configuration> defaultConfigurations = new LinkedHashSet<>()
-        defaultConfigurations.addAll(project.buildscript.configurations)
-        defaultConfigurations.addAll(project.configurations)
-        return defaultConfigurations
-    }
+	protected Collection<Configuration> prepareConfigurations() {
+		if (!configurations.empty) {
+			return configurations
+		}
+		Collection<Configuration> defaultConfigurations = new LinkedHashSet<>()
+		defaultConfigurations.addAll(project.buildscript.configurations.findAll { it.canBeResolved  })
+		defaultConfigurations.addAll(project.configurations.findAll { it.canBeResolved  })
+		return defaultConfigurations
+	}
 
-    void configuration(String name) {
-        configurations.add(project.configurations.getByName(name))
-    }
+	void configuration(String name) {
+		configurations.add(project.configurations.getByName(name))
+	}
 
-    void configuration(Configuration configuration) {
-        configurations.add(configuration)
-    }
+	void configuration(Configuration configuration) {
+		configurations.add(configuration)
+	}
 
-    @TaskAction
-    void build() {
+	@TaskAction
+	void build() {
 		ModelResolveListener resolveListener = { String groupId, String artifactId, String version, File pomFile ->
 			copyAssociatedPom(groupId, artifactId, version, pomFile)
 		}
 		ModelResolver modelResolver = new ModelResolverImpl(name, project, resolveListener)
-        for (Configuration config : prepareConfigurations()) {
-            copyJars(config)
-            copyPoms(config, modelResolver)
-        }
-    }
+		for (Configuration config : prepareConfigurations()) {
+			logger.info "Exporting ${config.name}..."
+			copyJars(config)
+			copyPoms(config, modelResolver)
+		}
+		Set<File> sortedFiles = new TreeSet()
+		sortedFiles.addAll(project.fileTree(exportDir).files)
+		logger.info("Exported ${sortedFiles.size()} files")
+		sortedFiles.each {
+			logger.info("   $it")
+		}
+	}
 
-    protected void copyJars(Configuration config) {
-        for (ResolvedArtifact artifact : config.resolvedConfiguration.resolvedArtifacts) {
-            ModuleVersionIdentifier moduleVersionId = artifact.moduleVersion.id
-            File moduleDir = new File(exportDir, getPath(moduleVersionId.group, moduleVersionId.name, moduleVersionId.version))
-            project.mkdir(moduleDir)
-            project.copy {
-                from artifact.file
-                into moduleDir
-            }
-        }
-    }
+	protected void copyJars(Configuration config) {
+		for (ResolvedArtifact artifact : config.resolvedConfiguration.resolvedArtifacts) {
+			ModuleVersionIdentifier moduleVersionId = artifact.moduleVersion.id
+			File moduleDir = new File(exportDir, getPath(moduleVersionId.group, moduleVersionId.name, moduleVersionId.version))
+			project.mkdir(moduleDir)
+			project.copy {
+				from artifact.file
+				into moduleDir
+			}
+		}
+	}
 
-    protected void copyPoms(Configuration config, ModelResolver modelResolver) {
-        List<ComponentIdentifier> componentIds = config.incoming.resolutionResult.allDependencies.collect { it.selected.id }
+	protected void copyPoms(Configuration config, ModelResolver modelResolver) {
+		List<ComponentIdentifier> componentIds = config.incoming.resolutionResult.allDependencies.collect { it.selected.id }
 
-        ArtifactResolutionResult result = project.dependencies.createArtifactResolutionQuery()
-                .forComponents(componentIds)
-                .withArtifacts(MavenModule, MavenPomArtifact)
-                .execute()
+		ArtifactResolutionResult result = project.dependencies.createArtifactResolutionQuery()
+				.forComponents(componentIds)
+				.withArtifacts(MavenModule, MavenPomArtifact)
+				.execute()
 
 		DefaultModelBuilderFactory factory = new DefaultModelBuilderFactory()
 		DefaultModelBuilder builder = factory.newInstance()
 		
-        for (component in result.resolvedComponents) {
-            ComponentIdentifier componentId = component.id
+		for (component in result.resolvedComponents) {
+			ComponentIdentifier componentId = component.id
 
-            if (componentId instanceof ModuleComponentIdentifier) {
-                File moduleDir = new File(exportDir, getPath(componentId.group, componentId.module, componentId.version))
-                project.mkdir(moduleDir)
-                component.getArtifacts(MavenPomArtifact).each { ArtifactResult artifactResult ->
-                    File pomFile = artifactResult.file
-                    project.copy {
-                        from pomFile
-                        into moduleDir
-                    }
+			if (componentId instanceof ModuleComponentIdentifier) {
+				File moduleDir = new File(exportDir, getPath(componentId.group, componentId.module, componentId.version))
+				project.mkdir(moduleDir)
+				component.getArtifacts(MavenPomArtifact).each { ArtifactResult artifactResult ->
+					File pomFile = artifactResult.file
+					project.copy {
+						from pomFile
+						into moduleDir
+					}
 					
 					// force the parent POMs and BOMs to be downloaded and copied
-                    try {
-                        ModelBuildingRequest req = new DefaultModelBuildingRequest()
-                        req.setModelResolver(modelResolver)
-                        req.setPomFile(pomFile)
-                        req.getSystemProperties().putAll(systemProperties)
-                        req.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL)
+					try {
+						ModelBuildingRequest req = new DefaultModelBuildingRequest()
+						req.setModelResolver(modelResolver)
+						req.setPomFile(pomFile)
+						req.getSystemProperties().putAll(systemProperties)
+						req.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL)
 						
 						// execute the model building request
-                        builder.build(req).getEffectiveModel()
-                    } catch (Exception e) {
-                        e.printStackTrace(System.out)
-                    }
-                }
-            }
-        }
-    }
+						builder.build(req).getEffectiveModel()
+					} catch (Exception e) {
+						logger.error("Error resolving $pomFile", e)
+					}
+				}
+			}
+		}
+	}
 	
 	protected void copyAssociatedPom(String groupId, String artifactId, String version, File pomFile) {
 		File moduleDir = new File(exportDir, getPath(groupId, artifactId, version))
@@ -123,7 +129,7 @@ class MavenDependencyExport extends DefaultTask {
 		}
 	}
 
-    protected String getPath(String group, String module, String version) {
-        return "${group.replace('.','/')}/${module}/${version}"
-    }
+	protected String getPath(String group, String module, String version) {
+		return "${group.replace('.','/')}/${module}/${version}"
+	}
 }

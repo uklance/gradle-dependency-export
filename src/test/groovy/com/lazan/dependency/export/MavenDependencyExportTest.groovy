@@ -13,7 +13,7 @@ import spock.lang.Specification
 
 class MavenDependencyExportTest extends Specification {
 
-	@Rule final TemporaryFolder testProjectDir = new TemporaryFolder()
+	@Rule final TemporaryFolder tempFolder = new TemporaryFolder()
 
 	def setup() {
 		URL testkitPropsUrl = getResourceUrl("testkit-gradle.properties")
@@ -29,13 +29,14 @@ class MavenDependencyExportTest extends Specification {
 	}
 
 	void writeFile(String path, String text) {
-		File file = new File(testProjectDir.root, path)
+		File file = new File(tempFolder.root, path)
 		file.parentFile.mkdirs()
 		file.text = text
 	}
 
 	def "Test dependency export"() {
 		given:
+		File testkitDir = tempFolder.newFolder('testkit')
 		writeFile("build.gradle", '''
 				plugins {
 					id 'com.lazan.dependency-export'
@@ -49,7 +50,6 @@ class MavenDependencyExportTest extends Specification {
 
 				}
 				mavenDependencyExport {
-					configuration 'compile'
 					exportDir = file("$buildDir/offline-repo")
 				}
 				task verifyExport {
@@ -71,7 +71,8 @@ class MavenDependencyExportTest extends Specification {
 			''')
 		when:
 		def result = GradleRunner.create()
-				.withProjectDir(testProjectDir.root)
+				.withProjectDir(tempFolder.root)
+				.withTestKitDir(testkitDir)
 				.withArguments('verifyExport', '--stacktrace')
 				.withPluginClasspath()
 				.build()
