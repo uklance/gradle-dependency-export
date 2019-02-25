@@ -34,6 +34,9 @@ apply plugin: "com.lazan.dependency-export"
 |configurations|Collection\<Configuration\>|buildscript.configurations + project.configurations|
 |exportDir|File|${buildDir}/maven-dependency-export|
 |systemProperties|Map\<String, Object\>|System.getProperties()|
+|exportSources|boolean|false|
+|exportJavadoc|boolean|false|
+
 
 ### Sample task customisation
 ```
@@ -50,5 +53,6 @@ mavenDependencyExport {
   systemProperties = ['java.version': '1.8']
   configuration 'foo'
   configuration buildscript.configurations.classpath
+  exportSources = true
 }
 ```

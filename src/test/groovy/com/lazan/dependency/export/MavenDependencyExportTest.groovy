@@ -122,4 +122,54 @@ class MavenDependencyExportTest extends Specification {
 		then:
 		result.task(":verifyExport").outcome == TaskOutcome.SUCCESS
 	}
+	
+	def "Test custom configuration export with sources and javadoc"() {
+		given:
+		File testkitDir = tempFolder.newFolder('testkit3')
+		writeFile("build.gradle", '''
+				plugins {
+					id 'com.lazan.dependency-export'
+				}
+				repositories {
+					mavenCentral()
+				}
+				configurations { foo }
+				dependencies {
+					foo 'org.hibernate:hibernate-core:3.5.4-Final'
+				}
+				mavenDependencyExport {
+					configuration 'foo'
+					exportDir = file("$buildDir/offline-repo")
+					exportSources = true
+					exportJavadoc = true
+				}
+				task verifyExport {
+					dependsOn mavenDependencyExport
+					doLast {
+						def paths = []
+						fileTree("$buildDir/offline-repo").visit {
+							if (!it.file.directory) {
+								paths << it.relativePath.pathString
+							}
+						}
+						assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final.pom')
+						assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final-sources.jar')
+						assert paths.contains('org/hibernate/hibernate-core/3.5.4-Final/hibernate-core-3.5.4-Final.jar')
+						assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1.jar')
+						assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1-javadoc.jar')
+						assert paths.contains('commons-collections/commons-collections/3.1/commons-collections-3.1.pom')
+						assert paths.contains('org/hibernate/hibernate-parent/3.5.4-Final/hibernate-parent-3.5.4-Final.pom')
+					}
+				} 
+			''')
+		when:
+		def result = GradleRunner.create()
+				.withProjectDir(tempFolder.root)
+				.withTestKitDir(testkitDir)
+				.withArguments('verifyExport', '--stacktrace')
+				.withPluginClasspath()
+				.build()
+		then:
+		result.task(":verifyExport").outcome == TaskOutcome.SUCCESS
+	}
 }

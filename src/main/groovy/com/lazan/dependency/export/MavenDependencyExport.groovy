@@ -5,10 +5,13 @@ import org.gradle.api.artifacts.result.*
 import org.gradle.api.file.*
 import org.gradle.api.tasks.*
 import org.gradle.api.*
-import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.component.*
 import org.gradle.maven.MavenModule
 import org.gradle.maven.MavenPomArtifact
+import org.gradle.api.component.Artifact
+import org.gradle.jvm.JvmLibrary
+import org.gradle.language.base.artifact.SourcesArtifact
+import org.gradle.language.java.artifact.JavadocArtifact
 
 import org.apache.maven.model.Model
 import org.apache.maven.model.building.DefaultModelBuilder
@@ -20,7 +23,9 @@ import org.apache.maven.model.resolution.ModelResolver
 class MavenDependencyExport extends DefaultTask {
 	public Collection<Configuration> configurations = new LinkedHashSet<>()
 	public Map<String, Object> systemProperties = System.getProperties()
-
+	boolean exportSources
+	boolean exportJavadoc
+	
 	@InputFiles
 	FileCollection getInputFiles() {
 		return project.files(prepareConfigurations())
@@ -55,7 +60,15 @@ class MavenDependencyExport extends DefaultTask {
 		ModelResolver modelResolver = new ModelResolverImpl(name, project, resolveListener)
 		for (Configuration config : prepareConfigurations()) {
 			logger.info "Exporting ${config.name}..."
+			// jars
 			copyJars(config)
+			// sources
+			if (exportSources)
+				copyAdditionalArtifacts(config, modelResolver, SourcesArtifact)
+			// javadoc
+			if (exportJavadoc)
+				copyAdditionalArtifacts(config, modelResolver, JavadocArtifact)
+			// poms & parent poms
 			copyPoms(config, modelResolver)
 		}
 		Set<File> sortedFiles = new TreeSet()
@@ -76,6 +89,34 @@ class MavenDependencyExport extends DefaultTask {
 				into moduleDir
 			}
 		}
+	}
+	
+	protected void copyAdditionalArtifacts(Configuration config, ModelResolver modelResolver, Class<? extends Artifact> artifactType) {
+	
+		List<ComponentIdentifier> componentIds = config.incoming.resolutionResult.allDependencies.collect { it.selected.id }
+
+		ArtifactResolutionResult result = project.dependencies.createArtifactResolutionQuery()
+				.forComponents(componentIds)
+				.withArtifacts(JvmLibrary, artifactType)
+				.execute()
+
+		for (component in result.resolvedComponents) {
+			ComponentIdentifier componentId = component.id
+			if (componentId instanceof ModuleComponentIdentifier) {
+				File moduleDir = new File(exportDir, getPath(componentId.group, componentId.module, componentId.version))
+				project.mkdir(moduleDir)
+				Set<ArtifactResult> artifacts = component.getArtifacts(artifactType)
+				artifacts.each { 
+					ArtifactResult artifactResult ->
+						File file = artifactResult.file
+						project.copy {
+							from file
+							into moduleDir
+						}
+				}
+			}
+		}
+
 	}
 
 	protected void copyPoms(Configuration config, ModelResolver modelResolver) {
