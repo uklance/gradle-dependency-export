@@ -60,22 +60,24 @@ class MavenDependencyExport extends DefaultTask {
 		ModelResolver modelResolver = new ModelResolverImpl(name, project, resolveListener)
 		for (Configuration config : prepareConfigurations()) {
 			logger.info "Exporting ${config.name}..."
-			// jars
 			copyJars(config)
-			// sources
-			if (exportSources)
-				copyAdditionalArtifacts(config, modelResolver, SourcesArtifact)
-			// javadoc
-			if (exportJavadoc)
-				copyAdditionalArtifacts(config, modelResolver, JavadocArtifact)
-			// poms & parent poms
 			copyPoms(config, modelResolver)
+			if (exportSources) {
+				copyAdditionalArtifacts(config, modelResolver, SourcesArtifact)
+			}
+			if (exportJavadoc) {
+				copyAdditionalArtifacts(config, modelResolver, JavadocArtifact)
+			}
 		}
-		Set<File> sortedFiles = new TreeSet()
-		sortedFiles.addAll(project.fileTree(exportDir).files)
-		logger.info("Exported ${sortedFiles.size()} files to $exportDir")
-		sortedFiles.each {
-			logger.info("   $it.name")
+		Set<String> exportedPaths = new TreeSet()
+		project.fileTree(exportDir).visit {
+			if (!it.directory) {
+				exportedPaths << it.relativePath.pathString
+			}
+		}
+		logger.info("Exported ${exportedPaths.size()} files to $exportDir")
+		exportedPaths.each {
+			logger.info("   $it")
 		}
 	}
 

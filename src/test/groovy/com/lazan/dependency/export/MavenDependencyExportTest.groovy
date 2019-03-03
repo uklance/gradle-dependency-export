@@ -71,6 +71,7 @@ task verifyExport {
 				.withTestKitDir(testKitDir)
 				.withArguments('verifyExport', '-i', '--stacktrace')
 				.withPluginClasspath()
+				.withDebug(true)
 				.build()
 		then:
 		System.out.println result.output
@@ -112,6 +113,7 @@ task verifyExport {
 				.withTestKitDir(testKitDir)
 				.withArguments('verifyExport', '-i', '--stacktrace')
 				.withPluginClasspath()
+				.withDebug(true)
 				.build()
 		then:
 		System.out.println result.output
@@ -156,6 +158,7 @@ task verifyExport {
 				.withTestKitDir(testKitDir)
 				.withArguments('verifyExport', '-i', '--stacktrace')
 				.withPluginClasspath()
+				.withDebug(true)
 				.build()
 		then:
 		System.out.println result.output
