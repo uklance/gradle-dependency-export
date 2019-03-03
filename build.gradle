@@ -40,6 +40,7 @@ jacocoTestReport {
 test {
 	testLogging {
 		exceptionFormat = 'full'
+		showStandardStreams = true
 	}
 	beforeTest { TestDescriptor descriptor ->
 		logger.lifecycle("Running test: $descriptor.name")
@@ -54,7 +55,10 @@ task createTestkitFiles {
 	outputs.dir outputDir
 
 	doLast {
-		String propString = "org.gradle.jvmargs=-javaagent:${configurations.jacocoRuntime.asPath}=destfile=$buildDir/jacoco/test.exec"
+		String propString = """
+org.gradle.daemon=false
+org.gradle.jvmargs=-javaagent:${configurations.jacocoRuntime.asPath}=destfile=$buildDir/jacoco/test.exec
+		"""
 		mkdir(outputDir)
 		file("$outputDir/testkit-gradle.properties").text = propString.replace('\\', '/')
 	}
