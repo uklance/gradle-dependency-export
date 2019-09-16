@@ -164,13 +164,13 @@ class MavenDependencyExport extends DefaultTask {
 						// force the parent POMs and BOMs to be downloaded and copied
 						try {
 							ModelBuildingRequest req = new DefaultModelBuildingRequest()
-									req.setModelResolver(modelResolver)
-									req.setPomFile(pomFile)
-									req.getSystemProperties().putAll(systemProperties)
-									req.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL)
+							req.setModelResolver(modelResolver)
+							req.setPomFile(pomFile)
+							req.getSystemProperties().putAll(systemProperties)
+							req.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL)
 									
-									// execute the model building request
-									builder.build(req).getEffectiveModel()
+							// execute the model building request
+							builder.build(req).getEffectiveModel()
 						} catch (Exception e) {
 							logger.error("Error resolving $pomFile", e)
 						}
