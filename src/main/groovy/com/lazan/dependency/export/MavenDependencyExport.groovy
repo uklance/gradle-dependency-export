@@ -25,6 +25,7 @@ class MavenDependencyExport extends DefaultTask {
 	public Map<String, Object> systemProperties = System.getProperties()
 	boolean exportSources
 	boolean exportJavadoc
+	boolean filterUnresolvable
 	
 	@InputFiles
 	FileCollection getInputFiles() {
@@ -151,24 +152,28 @@ class MavenDependencyExport extends DefaultTask {
 				File moduleDir = new File(exportDir, getPath(componentId.group, componentId.module, componentId.version))
 				project.mkdir(moduleDir)
 				component.getArtifacts(MavenPomArtifact).each { ArtifactResult artifactResult ->
-					File pomFile = artifactResult.file
-					project.copy {
-						from pomFile
-						into moduleDir
-					}
 
-					// force the parent POMs and BOMs to be downloaded and copied
-					try {
-						ModelBuildingRequest req = new DefaultModelBuildingRequest()
-						req.setModelResolver(modelResolver)
-						req.setPomFile(pomFile)
-						req.getSystemProperties().putAll(systemProperties)
-						req.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL)
-
-						// execute the model building request
-						builder.build(req).getEffectiveModel()
-					} catch (Exception e) {
-						logger.error("Error resolving $pomFile", e)
+					// only try unresolvable artifacts when filterUnresolvable is set to false
+					boolean isResolvableArtifact = !(artifactResult instanceof UnresolvedArtifactResult);
+					if (isResolvableArtifact || !filterUnresolvable) {
+						File pomFile = artifactResult.file
+						project.copy {
+							from pomFile
+							into moduleDir
+						}
+						// force the parent POMs and BOMs to be downloaded and copied
+						try {
+							ModelBuildingRequest req = new DefaultModelBuildingRequest()
+							req.setModelResolver(modelResolver)
+							req.setPomFile(pomFile)
+							req.getSystemProperties().putAll(systemProperties)
+							req.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL)
+									
+							// execute the model building request
+							builder.build(req).getEffectiveModel()
+						} catch (Exception e) {
+							logger.error("Error resolving $pomFile", e)
+						}
 					}
 				}
 			}
