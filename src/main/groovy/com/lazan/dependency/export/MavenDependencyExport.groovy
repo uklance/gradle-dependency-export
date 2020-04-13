@@ -151,24 +151,28 @@ class MavenDependencyExport extends DefaultTask {
 				File moduleDir = new File(exportDir, getPath(componentId.group, componentId.module, componentId.version))
 				project.mkdir(moduleDir)
 				component.getArtifacts(MavenPomArtifact).each { ArtifactResult artifactResult ->
-					File pomFile = artifactResult.file
-					project.copy {
-						from pomFile
-						into moduleDir
-					}
+					if (artifactResult instanceof DefaultUnresolvedArtifactResult)
+						logger.info(artifactResult.toString());
+					else {
+						File pomFile = artifactResult.file
+						project.copy {
+							from pomFile
+							into moduleDir
+						}
 
-					// force the parent POMs and BOMs to be downloaded and copied
-					try {
-						ModelBuildingRequest req = new DefaultModelBuildingRequest()
-						req.setModelResolver(modelResolver)
-						req.setPomFile(pomFile)
-						req.getSystemProperties().putAll(systemProperties)
-						req.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL)
+						// force the parent POMs and BOMs to be downloaded and copied
+						try {
+							ModelBuildingRequest req = new DefaultModelBuildingRequest()
+							req.setModelResolver(modelResolver)
+							req.setPomFile(pomFile)
+							req.getSystemProperties().putAll(systemProperties)
+							req.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL)
 
-						// execute the model building request
-						builder.build(req).getEffectiveModel()
-					} catch (Exception e) {
-						logger.error("Error resolving $pomFile", e)
+							// execute the model building request
+							builder.build(req).getEffectiveModel()
+						} catch (Exception e) {
+							logger.error("Error resolving $pomFile", e)
+						}
 					}
 				}
 			}
