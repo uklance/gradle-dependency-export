@@ -26,24 +26,22 @@ class MavenDependencyExport extends DefaultTask {
 	public Map<String, Object> systemProperties = System.getProperties()
 	boolean exportSources
 	boolean exportJavadoc
-	Set<Project> projects = new HashSet<>();
-	private static final ALL_PROJECT_NAME = "ALL_PROJECTS"
 
 	@InputFiles
 	FileCollection getInputFiles() {
-		return project.files(prepareConfigurations(project))
+		return project.files(prepareConfigurations())
 	}
 
 	@OutputDirectory
 	File exportDir = new File(project.buildDir, 'maven-dependency-export')
 
-	protected Collection<Configuration> prepareConfigurations(Project projectForPrepare) {
+	protected Collection<Configuration> prepareConfigurations() {
 		if (!configurations.empty) {
 			return configurations
 		}
 		Collection<Configuration> defaultConfigurations = new LinkedHashSet<>()
-		defaultConfigurations.addAll(projectForPrepare.buildscript.configurations.findAll { it.canBeResolved })
-		defaultConfigurations.addAll(projectForPrepare.configurations.findAll { it.canBeResolved })
+		defaultConfigurations.addAll(project.buildscript.configurations.findAll { it.canBeResolved })
+		defaultConfigurations.addAll(project.configurations.findAll { it.canBeResolved })
 		return defaultConfigurations
 	}
 
@@ -51,7 +49,7 @@ class MavenDependencyExport extends DefaultTask {
 		for (Configuration conf : configs)
 			configuration(conf)
 	}
-	
+
 	void configuration(String name) {
 		Configuration config = project.configurations.getByName(name)
 		if (config.canBeResolved) {
@@ -69,54 +67,30 @@ class MavenDependencyExport extends DefaultTask {
 		}
 	}
 
-	void setProjects(Collection<String> projectsNames) {
-		projectsNames.each {projectName -> setProjects(projectName)}
-	}
-
-	void setProjects(String projectName) {
-		if (ALL_PROJECT_NAME == projectName)
-			projects.addAll(project.getAllprojects())
-		else {
-			java.util.Optional<Project> foundProject = project.getAllprojects().stream().filter({ it -> it.getName().equals(projectName) }).findFirst();
-			if (foundProject.isPresent())
-				projects.add(foundProject.get())
-			else
-				logger.warn("Project with name " + projectName + " not found");
-		}
-	}
-
-	private Set<Project> getProjectsForExport() {
-		if (projects.isEmpty())
-			return Collections.singleton(project)
-		return projects
-	}
-
 	@TaskAction
 	void build() {
 		ModelResolveListener resolveListener = { String groupId, String artifactId, String version, File pomFile ->
 			copyAssociatedPom(groupId, artifactId, version, pomFile)
 		}
-		getProjectsForExport().each {currentProject ->
-			ModelResolver modelResolver = new ModelResolverImpl(name, currentProject, resolveListener)
-			for (Configuration config : prepareConfigurations(currentProject)) {
-				logger.info "Exporting ${config.name}..."
-				copyJars(config)
-				copyPoms(currentProject, config, modelResolver)
-				if (exportSources)
-					copyAdditionalArtifacts(currentProject, config, modelResolver, SourcesArtifact)
-				if (exportJavadoc)
-					copyAdditionalArtifacts(currentProject, config, modelResolver, JavadocArtifact)
+		ModelResolver modelResolver = new ModelResolverImpl(name, project, resolveListener)
+		for (Configuration config : prepareConfigurations()) {
+			logger.info "Exporting ${config.name}..."
+			copyJars(config)
+			copyPoms(config, modelResolver)
+			if (exportSources)
+				copyAdditionalArtifacts(config, modelResolver, SourcesArtifact)
+			if (exportJavadoc)
+				copyAdditionalArtifacts(config, modelResolver, JavadocArtifact)
+		}
+		Set<String> exportedPaths = new TreeSet()
+		project.fileTree(exportDir).visit {
+			if (!it.directory) {
+				exportedPaths << it.relativePath.pathString
 			}
-			Set<String> exportedPaths = new TreeSet()
-			project.fileTree(exportDir).visit {
-				if (!it.directory) {
-					exportedPaths << it.relativePath.pathString
-				}
-			}
-			logger.info("Exported ${exportedPaths.size()} files to $exportDir")
-			exportedPaths.each {
-				logger.info("   $it")
-			}
+		}
+		logger.info("Exported ${exportedPaths.size()} files to $exportDir")
+		exportedPaths.each {
+			logger.info("   $it")
 		}
 	}
 
@@ -131,12 +105,12 @@ class MavenDependencyExport extends DefaultTask {
 			}
 		}
 	}
-	
-	protected void copyAdditionalArtifacts(Project proj, Configuration config, ModelResolver modelResolver, Class<? extends Artifact> artifactType) {
-	
+
+	protected void copyAdditionalArtifacts(Configuration config, ModelResolver modelResolver, Class<? extends Artifact> artifactType) {
+
 		List<ComponentIdentifier> componentIds = config.incoming.resolutionResult.allDependencies.collect { it.selected.id }
 
-		ArtifactResolutionResult result = proj.dependencies.createArtifactResolutionQuery()
+		ArtifactResolutionResult result = project.dependencies.createArtifactResolutionQuery()
 				.forComponents(componentIds)
 				.withArtifacts(JvmLibrary, artifactType)
 				.execute()
@@ -147,7 +121,7 @@ class MavenDependencyExport extends DefaultTask {
 				File moduleDir = new File(exportDir, getPath(componentId.group, componentId.module, componentId.version))
 				project.mkdir(moduleDir)
 				Set<ArtifactResult> artifacts = component.getArtifacts(artifactType)
-				artifacts.each { 
+				artifacts.each {
 					ArtifactResult artifactResult ->
 						File file = artifactResult.file
 						project.copy {
@@ -160,10 +134,10 @@ class MavenDependencyExport extends DefaultTask {
 
 	}
 
-	protected void copyPoms(Project proj, Configuration config, ModelResolver modelResolver) {
+	protected void copyPoms(Configuration config, ModelResolver modelResolver) {
 		List<ComponentIdentifier> componentIds = config.incoming.resolutionResult.allDependencies.collect { it.selected.id }
 
-		ArtifactResolutionResult result = proj.dependencies.createArtifactResolutionQuery()
+		ArtifactResolutionResult result = project.dependencies.createArtifactResolutionQuery()
 				.forComponents(componentIds)
 				.withArtifacts(MavenModule, MavenPomArtifact)
 				.execute()
