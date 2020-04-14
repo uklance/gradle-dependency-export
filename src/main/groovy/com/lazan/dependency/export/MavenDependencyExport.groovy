@@ -3,6 +3,7 @@ package com.lazan.dependency.export
 import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.result.*
 import org.gradle.api.file.*
+import org.gradle.api.internal.artifacts.result.DefaultUnresolvedArtifactResult
 import org.gradle.api.tasks.*
 import org.gradle.api.*
 import org.gradle.api.artifacts.component.*
@@ -25,22 +26,22 @@ class MavenDependencyExport extends DefaultTask {
 	public Map<String, Object> systemProperties = System.getProperties()
 	boolean exportSources
 	boolean exportJavadoc
-	
+
 	@InputFiles
 	FileCollection getInputFiles() {
-		return project.files(prepareConfigurations())
+		return project.files(prepareConfigurations(project))
 	}
 
 	@OutputDirectory
 	File exportDir = new File(project.buildDir, 'maven-dependency-export')
 
-	protected Collection<Configuration> prepareConfigurations() {
+	protected Collection<Configuration> prepareConfigurations(Project projectForPrepare) {
 		if (!configurations.empty) {
 			return configurations
 		}
 		Collection<Configuration> defaultConfigurations = new LinkedHashSet<>()
-		defaultConfigurations.addAll(project.buildscript.configurations.findAll { it.canBeResolved })
-		defaultConfigurations.addAll(project.configurations.findAll { it.canBeResolved })
+		defaultConfigurations.addAll(projectForPrepare.buildscript.configurations.findAll { it.canBeResolved })
+		defaultConfigurations.addAll(projectForPrepare.configurations.findAll { it.canBeResolved })
 		return defaultConfigurations
 	}
 
@@ -71,25 +72,28 @@ class MavenDependencyExport extends DefaultTask {
 		ModelResolveListener resolveListener = { String groupId, String artifactId, String version, File pomFile ->
 			copyAssociatedPom(groupId, artifactId, version, pomFile)
 		}
-		ModelResolver modelResolver = new ModelResolverImpl(name, project, resolveListener)
-		for (Configuration config : prepareConfigurations()) {
-			logger.info "Exporting ${config.name}..."
-			copyJars(config)
-			copyPoms(config, modelResolver)
-			if (exportSources)
-				copyAdditionalArtifacts(config, modelResolver, SourcesArtifact)
-			if (exportJavadoc)
-				copyAdditionalArtifacts(config, modelResolver, JavadocArtifact)
-		}
-		Set<String> exportedPaths = new TreeSet()
-		project.fileTree(exportDir).visit {
-			if (!it.directory) {
-				exportedPaths << it.relativePath.pathString
+		project.getAllprojects().each {currentProject ->
+			logger.info("start " + currentProject)
+			ModelResolver modelResolver = new ModelResolverImpl(name, currentProject, resolveListener)
+			for (Configuration config : prepareConfigurations(currentProject)) {
+				logger.info "Exporting ${config.name}..."
+				copyJars(config)
+				copyPoms(currentProject, config, modelResolver)
+				if (exportSources)
+					copyAdditionalArtifacts(currentProject, config, modelResolver, SourcesArtifact)
+				if (exportJavadoc)
+					copyAdditionalArtifacts(currentProject, config, modelResolver, JavadocArtifact)
 			}
-		}
-		logger.info("Exported ${exportedPaths.size()} files to $exportDir")
-		exportedPaths.each {
-			logger.info("   $it")
+			Set<String> exportedPaths = new TreeSet()
+			project.fileTree(exportDir).visit {
+				if (!it.directory) {
+					exportedPaths << it.relativePath.pathString
+				}
+			}
+			logger.info("Exported ${exportedPaths.size()} files to $exportDir")
+			exportedPaths.each {
+				logger.info("   $it")
+			}
 		}
 	}
 
@@ -105,11 +109,11 @@ class MavenDependencyExport extends DefaultTask {
 		}
 	}
 	
-	protected void copyAdditionalArtifacts(Configuration config, ModelResolver modelResolver, Class<? extends Artifact> artifactType) {
+	protected void copyAdditionalArtifacts(Project proj, Configuration config, ModelResolver modelResolver, Class<? extends Artifact> artifactType) {
 	
 		List<ComponentIdentifier> componentIds = config.incoming.resolutionResult.allDependencies.collect { it.selected.id }
 
-		ArtifactResolutionResult result = project.dependencies.createArtifactResolutionQuery()
+		ArtifactResolutionResult result = proj.dependencies.createArtifactResolutionQuery()
 				.forComponents(componentIds)
 				.withArtifacts(JvmLibrary, artifactType)
 				.execute()
@@ -133,10 +137,10 @@ class MavenDependencyExport extends DefaultTask {
 
 	}
 
-	protected void copyPoms(Configuration config, ModelResolver modelResolver) {
+	protected void copyPoms(Project proj, Configuration config, ModelResolver modelResolver) {
 		List<ComponentIdentifier> componentIds = config.incoming.resolutionResult.allDependencies.collect { it.selected.id }
 
-		ArtifactResolutionResult result = project.dependencies.createArtifactResolutionQuery()
+		ArtifactResolutionResult result = proj.dependencies.createArtifactResolutionQuery()
 				.forComponents(componentIds)
 				.withArtifacts(MavenModule, MavenPomArtifact)
 				.execute()
