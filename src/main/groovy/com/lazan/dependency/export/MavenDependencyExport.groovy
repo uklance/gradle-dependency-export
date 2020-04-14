@@ -1,31 +1,37 @@
 package com.lazan.dependency.export
 
-import org.gradle.api.artifacts.*
-import org.gradle.api.artifacts.result.*
-import org.gradle.api.file.*
-import org.gradle.api.internal.artifacts.result.DefaultUnresolvedArtifactResult
-import org.gradle.api.tasks.*
-import org.gradle.api.*
-import org.gradle.api.artifacts.component.*
-import org.gradle.maven.MavenModule
-import org.gradle.maven.MavenPomArtifact
-import org.gradle.api.component.Artifact
-import org.gradle.jvm.JvmLibrary
-import org.gradle.language.base.artifact.SourcesArtifact
-import org.gradle.language.java.artifact.JavadocArtifact
-
-import org.apache.maven.model.Model
 import org.apache.maven.model.building.DefaultModelBuilder
 import org.apache.maven.model.building.DefaultModelBuilderFactory
 import org.apache.maven.model.building.DefaultModelBuildingRequest
 import org.apache.maven.model.building.ModelBuildingRequest
 import org.apache.maven.model.resolution.ModelResolver
+import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ModuleVersionIdentifier
+import org.gradle.api.artifacts.ResolvedArtifact
+import org.gradle.api.artifacts.component.ComponentIdentifier
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.ArtifactResolutionResult
+import org.gradle.api.artifacts.result.ArtifactResult
+import org.gradle.api.artifacts.result.UnresolvedArtifactResult
+import org.gradle.api.component.Artifact
+import org.gradle.api.file.FileCollection
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
+import org.gradle.jvm.JvmLibrary
+import org.gradle.language.base.artifact.SourcesArtifact
+import org.gradle.language.java.artifact.JavadocArtifact
+import org.gradle.maven.MavenModule
+import org.gradle.maven.MavenPomArtifact
 
 class MavenDependencyExport extends DefaultTask {
 	public Collection<Configuration> configurations = new LinkedHashSet<>()
 	public Map<String, Object> systemProperties = System.getProperties()
 	boolean exportSources
 	boolean exportJavadoc
+	boolean failOnUnresolvedArtifact = true;
 
 	@InputFiles
 	FileCollection getInputFiles() {
@@ -94,6 +100,19 @@ class MavenDependencyExport extends DefaultTask {
 		}
 	}
 
+	protected boolean checkArtifactResult(ArtifactResult artifactResult) {
+		if (artifactResult instanceof UnresolvedArtifactResult) {
+			String message = "Error receiving artifact " + artifactResult.getId().getDisplayName()
+			if (failOnUnresolvedArtifact)
+				throw new GradleException(message)
+			else {
+				logger.warn(message)
+				return false;
+			}
+		}
+		return true
+	}
+
 	protected void copyJars(Configuration config) {
 		for (ResolvedArtifact artifact : config.resolvedConfiguration.resolvedArtifacts) {
 			ModuleVersionIdentifier moduleVersionId = artifact.moduleVersion.id
@@ -123,10 +142,12 @@ class MavenDependencyExport extends DefaultTask {
 				Set<ArtifactResult> artifacts = component.getArtifacts(artifactType)
 				artifacts.each {
 					ArtifactResult artifactResult ->
-						File file = artifactResult.file
-						project.copy {
-							from file
-							into moduleDir
+						if (checkArtifactResult(artifactResult)) {
+							File file = artifactResult.file
+							project.copy {
+								from file
+								into moduleDir
+							}
 						}
 				}
 			}
@@ -152,9 +173,7 @@ class MavenDependencyExport extends DefaultTask {
 				File moduleDir = new File(exportDir, getPath(componentId.group, componentId.module, componentId.version))
 				project.mkdir(moduleDir)
 				component.getArtifacts(MavenPomArtifact).each { ArtifactResult artifactResult ->
-					if (artifactResult instanceof DefaultUnresolvedArtifactResult)
-						logger.info(artifactResult.toString());
-					else {
+					if (checkArtifactResult(artifactResult)) {
 						File pomFile = artifactResult.file
 						project.copy {
 							from pomFile
