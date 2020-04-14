@@ -26,6 +26,8 @@ class MavenDependencyExport extends DefaultTask {
 	public Map<String, Object> systemProperties = System.getProperties()
 	boolean exportSources
 	boolean exportJavadoc
+	Set<Project> projects = new HashSet<>();
+	private static final ALL_PROJECT_NAME = "ALL_PROJECTS"
 
 	@InputFiles
 	FileCollection getInputFiles() {
@@ -67,13 +69,34 @@ class MavenDependencyExport extends DefaultTask {
 		}
 	}
 
+	void setProjects(Collection<String> projectsNames) {
+		projectsNames.each {projectName -> setProjects(projectName)}
+	}
+
+	void setProjects(String projectName) {
+		if (ALL_PROJECT_NAME == projectName)
+			projects.addAll(project.getAllprojects())
+		else {
+			java.util.Optional<Project> foundProject = project.getAllprojects().stream().filter({ it -> it.getName().equals(projectName) }).findFirst();
+			if (foundProject.isPresent())
+				projects.add(foundProject.get())
+			else
+				logger.warn("Project with name " + projectName + " not found");
+		}
+	}
+
+	private Set<Project> getProjectsForExport() {
+		if (projects.isEmpty())
+			return Collections.singleton(project)
+		return projects
+	}
+
 	@TaskAction
 	void build() {
 		ModelResolveListener resolveListener = { String groupId, String artifactId, String version, File pomFile ->
 			copyAssociatedPom(groupId, artifactId, version, pomFile)
 		}
-		project.getAllprojects().each {currentProject ->
-			logger.info("start " + currentProject)
+		getProjectsForExport().each {currentProject ->
 			ModelResolver modelResolver = new ModelResolverImpl(name, currentProject, resolveListener)
 			for (Configuration config : prepareConfigurations(currentProject)) {
 				logger.info "Exporting ${config.name}..."
