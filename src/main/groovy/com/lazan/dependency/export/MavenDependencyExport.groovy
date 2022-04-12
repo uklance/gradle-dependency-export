@@ -23,8 +23,6 @@ import org.apache.maven.model.resolution.ModelResolver
 class MavenDependencyExport extends DefaultTask {
 	public Collection<Configuration> configurations = new LinkedHashSet<>()
 	public Map<String, Object> systemProperties = System.getProperties()
-	boolean exportSources
-	boolean exportJavadoc
 	
 	@InputFiles
 	FileCollection getInputFiles() {
@@ -68,6 +66,7 @@ class MavenDependencyExport extends DefaultTask {
 
 	@TaskAction
 	void build() {
+		MavenDependencyExportExtension ext = getProject().getExtensions().findByType(MavenDependencyExportExtension)
 		ModelResolveListener resolveListener = { String groupId, String artifactId, String version, File pomFile ->
 			copyAssociatedPom(groupId, artifactId, version, pomFile)
 		}
@@ -76,9 +75,9 @@ class MavenDependencyExport extends DefaultTask {
 			logger.info "Exporting ${config.name}..."
 			copyJars(config)
 			copyPoms(config, modelResolver)
-			if (exportSources)
+			if (ext.exportSources)
 				copyAdditionalArtifacts(config, modelResolver, SourcesArtifact)
-			if (exportJavadoc)
+			if (ext.exportJavadoc)
 				copyAdditionalArtifacts(config, modelResolver, JavadocArtifact)
 		}
 		Set<String> exportedPaths = new TreeSet()
