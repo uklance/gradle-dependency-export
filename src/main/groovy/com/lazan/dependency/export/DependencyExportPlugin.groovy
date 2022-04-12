@@ -7,5 +7,6 @@ class DependencyExportPlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
         project.tasks.create(name: 'mavenDependencyExport', type: MavenDependencyExport)
+        project.extensions.create('mavenDependencyExport', MavenDependencyExportExtension)
     }
 }

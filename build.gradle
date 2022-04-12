@@ -19,14 +19,14 @@ configurations {
 }
 
 dependencies {
-	compile 'org.apache.maven:maven-model:3.5.2'
-	compile 'org.apache.maven:maven-model-builder:3.5.2'
-	testCompile 'junit:junit:4.12'
-	testCompile 'org.mockito:mockito-all:1.10.19'
-	testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
+	implementation 'org.apache.maven:maven-model:3.5.2'
+	implementation 'org.apache.maven:maven-model-builder:3.5.2'
+	testImplementation 'junit:junit:4.12'
+	testImplementation 'org.mockito:mockito-all:1.10.19'
+	testImplementation('org.spockframework:spock-core:2.1-groovy-3.0') {
         exclude module: 'groovy-all'
     }
-	testRuntime files({project.tasks['createTestkitFiles']})
+	testRuntimeOnly files({project.tasks['createTestkitFiles']})
 	jacocoRuntime "org.jacoco:org.jacoco.agent:${jacoco.toolVersion}:runtime"
 }
 
